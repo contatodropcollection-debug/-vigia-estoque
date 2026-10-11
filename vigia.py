@@ -232,7 +232,14 @@ def reval_login():
     s.headers.update(S.headers)
     r = s.get("https://www.reval.net/login", timeout=30)
     r.raise_for_status()
-    form = BeautifulSoup(r.text, "html.parser").find("form")
+    sopa = BeautifulSoup(r.text, "html.parser")
+    form = sopa.find("form")
+    if form is None or not form.find("input", attrs={"type": "password"}):
+        tt = sopa.title.get_text(strip=True)[:60] if sopa.title else ""
+        trecho = re.sub(r"\s+", " ", sopa.get_text(" ", strip=True))[:200]
+        log(f"Reval: página de login diferente do esperado: status={r.status_code} "
+            f"pagina={r.url.split('?')[0]} tam={len(r.text)} titulo={tt!r} texto={trecho!r}")
+        raise RuntimeError("página de login da Reval não veio como esperado (talvez bloqueio da nuvem)")
     dados = {i["name"]: i.get("value", "") for i in form.find_all("input")
              if i.get("name") and i.get("type", "text") not in ("submit", "button", "image", "checkbox")}
     dados["ctl00$MainContent$wucLoginCliente$txtUsuario"] = os.environ["REVAL_USUARIO"]

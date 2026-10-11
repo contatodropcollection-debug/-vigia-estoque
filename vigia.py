@@ -238,8 +238,20 @@ def reval_login():
     dados["ctl00$MainContent$wucLoginCliente$txtUsuario"] = os.environ["REVAL_USUARIO"]
     dados["ctl00$MainContent$wucLoginCliente$txtSenha"] = os.environ["REVAL_SENHA"]
     dados["ctl00$MainContent$wucLoginCliente$btnEntrar"] = "Entrar"
-    s.post("https://www.reval.net/login", data=dados, timeout=30,
-           headers={"Referer": "https://www.reval.net/login", "Origin": "https://www.reval.net"})
+    r2 = s.post("https://www.reval.net/login", data=dados, timeout=30,
+                headers={"Referer": "https://www.reval.net/login", "Origin": "https://www.reval.net"})
+    # Diagnóstico (sem mostrar usuário/senha)
+    t = r2.text.lower()
+    sinais = [k for k in ("sair", "olá", "inválid", "incorret", "não encontrado", "bloque", "captcha",
+                          "cnpj", "e-mail", "aguarde", "faça login") if k in t]
+    titulo = BeautifulSoup(r2.text, "html.parser").title
+    log(f"Reval login: status={r2.status_code} pagina={r2.url.split('?')[0]} tam={len(r2.text)} "
+        f"titulo={(titulo.get_text(strip=True) if titulo else '')[:40]!r} sinais={sinais} "
+        f"campos={len(dados)} usuario_tam={len(os.environ['REVAL_USUARIO'])} cookies={sorted(c.name for c in s.cookies)}")
+    msgs = [x.get_text(' ', strip=True)[:120] for x in BeautifulSoup(r2.text, 'html.parser').select(
+        '.alert, .error, .erro, .validation-summary-errors, [id*=lblMsg], [id*=lblErro], [id*=Mensagem], .msg')]
+    if msgs:
+        log(f"Reval login mensagens: {msgs[:3]}")
     return s
 
 

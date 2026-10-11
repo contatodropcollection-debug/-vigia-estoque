@@ -1,0 +1,44 @@
+name: Vigia de estoque
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"   # a cada 10 min (o GitHub pode atrasar um pouco)
+  workflow_dispatch:          # botão "Run workflow" para rodar na hora
+
+concurrency:
+  group: vigia
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  vigiar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar peças
+        run: pip install -q requests beautifulsoup4
+
+      - name: Recuperar memória da última rodada
+        uses: actions/cache@v4
+        with:
+          path: |
+            estado.json
+            telegram_offset.json
+          key: vigia-estado-${{ github.run_id }}
+          restore-keys: vigia-estado-
+
+      - name: Vigiar
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          REVAL_USUARIO: ${{ secrets.REVAL_USUARIO }}
+          REVAL_SENHA: ${{ secrets.REVAL_SENHA }}
+          VIGIA_SITES: "supertcg,spkids,reval"
+        run: python vigia.py
